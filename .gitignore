@@ -31,3 +31,6 @@ data/cache/
 data/raw/
 *.sqlite
 *.db
+# Local scratch output from live runs
+turn*_out.txt
+*_out.txt

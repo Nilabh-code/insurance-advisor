@@ -198,6 +198,35 @@ class TestZoneEffect:
         assert b.zone == "B"
 
 
+class TestAddOnNormalisation:
+    def test_returns_matched_and_unmatched(self):
+        matched, unmatched = tables.normalise_add_ons(
+            ["zero depreciation", "helicopter rescue"])
+        assert matched == ["zero_dep"]
+        assert unmatched == ["helicopter rescue"]
+
+    def test_common_phrasings_all_resolve(self):
+        """Every add-on a customer realistically names must map to something, or be
+        reported - never silently dropped."""
+        for probe in ("zero dep", "zero depreciation", "engine protect",
+                      "road assist", "roadside assistance", "consumables",
+                      "key loss", "RTI", "passenger cover", "tyre and alloy",
+                      "alloy wheels", "bumpers", "nil inclined"):
+            matched, unmatched = tables.normalise_add_ons([probe])
+            assert matched or unmatched == [probe], f"{probe!r} vanished entirely"
+            if probe != "nil inclined":
+                assert matched, f"{probe!r} silently dropped"
+
+    def test_deduplicates(self):
+        matched, _ = tables.normalise_add_ons(["zero dep", "zero depreciation", "zerodep"])
+        assert matched == ["zero_dep"]
+
+    def test_empty_input(self):
+        assert tables.normalise_add_ons([]) == ([], [])
+        assert tables.normalise_add_ons(None) == ([], [])
+        assert tables.normalise_add_ons([""]) == ([], [])
+
+
 class TestCoverTypeAndAddons:
     def test_comprehensive_exceeds_third_party_only(self):
         comp = motor.quote_motor(make_profile(policy_type="comprehensive"))
@@ -209,6 +238,18 @@ class TestCoverTypeAndAddons:
         with_addons = motor.quote_motor(make_profile(add_ons=["zero_dep", "road_assist"]))
         assert with_addons.total > without.total
         assert with_addons.add_ons == ["zero_dep", "road_assist"]
+
+    def test_unknown_addon_is_reported_not_silently_dropped(self):
+        """A recommendation engine that quietly discards a requested cover hands the
+        customer a policy missing what they asked for. It must be surfaced."""
+        q = motor.quote_motor(make_profile(add_ons=["helicopter rescue"]))
+        assert any("No published reference price" in w for w in q.warnings)
+        assert "helicopter rescue" in " ".join(q.warnings)
+
+    def test_matched_and_unreported_addons_coexist(self):
+        q = motor.quote_motor(make_profile(add_ons=["zero_dep", "helicopter rescue"]))
+        assert q.add_ons == ["zero_dep"]
+        assert any("helicopter rescue" in w for w in q.warnings)
 
     def test_addon_aliases_normalised(self):
         q = motor.quote_motor(make_profile(add_ons=["Zero Dep", "roadside assistance"]))

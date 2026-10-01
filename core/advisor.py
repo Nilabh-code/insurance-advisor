@@ -140,7 +140,15 @@ class Advisor:
             out["extracted"] = report["accepted"]
             out["rejected"] = report["rejected"]
         except LLMError as e:
+            # Never drop the customer's facts silently. If extraction failed but we
+            # already hold a complete profile, we can still recompute and explain -
+            # and the user must be told extraction was skipped, not left guessing.
             out["extraction_error"] = str(e)
+            out["reply_suffix"] = (
+                "\n\n(I could not read the last message just now, so I have not "
+                "updated your details from it. If that message changed anything, "
+                "tell me again and I will work it in.)"
+            )
 
         # 2. Derive anything the schema implies (e.g. cubic capacity from variant).
         self._derive()
@@ -156,6 +164,8 @@ class Advisor:
 
         # 4. Explain.
         out["reply"] = self._explain(user_message, out)
+        suffix = out.pop("reply_suffix", "")
+        out["reply"] = out["reply"] + suffix
         self.profile.transcript.append({"role": "assistant", "content": out["reply"]})
         out["complete"] = self.profile.is_complete()
         out["completeness"] = self.profile.completeness()

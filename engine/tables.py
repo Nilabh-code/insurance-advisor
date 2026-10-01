@@ -186,19 +186,28 @@ ADDON_BASE_PREMIUM: dict[str, float] = {
     "key_loss": 350,
     "rti": 300,
     "passenger_personal_accident": 450,   # per seat, scaled below
+    "tyre_and_alloy": 700,
+    "bumper_bumper": 500,
     "nil_inclined": 0,
 }
 
 ADDON_ALIASES = {
     "zero dep": "zero_dep", "zero depreciation": "zero_dep", "zerodep": "zero_dep",
     "engine protect": "engine_protect", "engine damage": "engine_protect",
-    "road assist": "road_assist", "roadside": "road_assist", "towing": "road_assist",
+    "engine protect cover": "engine_protect",
+    "road assist": "road_assist", "roadside": "road_assist",
+    "roadside assistance": "road_assist", "towing": "road_assist",
     "consumables": "consumables", "engine consumables": "consumables",
     "key loss": "key_loss", "key replacement": "key_loss",
     "rti": "rti", "road tax": "rti",
     "passenger cover": "passenger_personal_accident",
     "ppa": "passenger_personal_accident",
     "nil inclined": "nil_inclined", "nil_inv": "nil_inclined",
+    "tyre": "tyre_and_alloy", "tyres": "tyre_and_alloy",
+    "tyre and alloy": "tyre_and_alloy", "tyre & alloy": "tyre_and_alloy",
+    "alloy wheel": "tyre_and_alloy", "alloy wheels": "tyre_and_alloy",
+    "bumper": "bumper_bumper", "bumpers": "bumper_bumper",
+    "bumper bumper": "bumper_bumper",
 }
 
 
@@ -214,17 +223,28 @@ def cc_band(cubic_capacity: int | None) -> str:
     return "1500cc_plus"
 
 
-def normalise_add_ons(raw: list) -> list[str]:
-    """Map whatever the user called their add-ons onto canonical keys."""
-    out: list[str] = []
+def normalise_add_ons(raw: list) -> tuple[list[str], list[str]]:
+    """Map whatever the user called their add-ons onto canonical keys.
+
+    Returns (matched, unmatched). The caller MUST surface unmatched entries rather
+    than dropping them: a recommendation engine that silently discards "tyre
+    cover" will recommend a plan that is missing the thing the customer actually
+    asked for, and they will find out only at the point of claim.
+    """
+    matched: list[str] = []
+    unmatched: list[str] = []
     for item in raw or []:
         text = str(item).strip().lower().replace("_", " ")
+        if not text:
+            continue
         canon = ADDON_ALIASES.get(text) or ADDON_ALIASES.get(text.replace(" ", "_"))
         if canon is None:
             for alias, key in ADDON_ALIASES.items():
                 if alias in text:
                     canon = key
                     break
-        if canon and canon not in out:
-            out.append(canon)
-    return out
+        if canon is None:
+            unmatched.append(str(item))
+        elif canon not in matched:
+            matched.append(canon)
+    return matched, unmatched

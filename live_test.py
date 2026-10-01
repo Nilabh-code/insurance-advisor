@@ -3,6 +3,10 @@
 Not part of pytest: it costs tokens and needs network + the Pi serving the model.
 Run manually:  python live_test.py
 
+Writes to stdout. When backgrounding this on the Pi, redirect to a UNIQUE file per
+run - two concurrent runs pointed at the same output path will clobber each
+other and you will lose the tail of the conversation.
+
 Walks a realistic motor conversation turn by turn, printing what the extractor
 pulled out, what the engine computed, and what the model said back.
 """
@@ -59,6 +63,8 @@ def main():
             print(f"  [missing]   {r['missing']}")
         done, total = r["completeness"]
         print(f"  [profile]   {done}/{total} required")
+        if r.get("extraction_error"):
+            print(f"  [EXTRACTION FAILED] {r['extraction_error']}")
         if r.get("quote"):
             q = r["quote"]
             print(f"  [QUOTE]     Rs {q['total']:,.0f} total "

@@ -277,17 +277,24 @@ def quote_motor(profile: Profile, current_year: int = CURRENT_YEAR) -> MotorQuot
                      "Price is fixed by regulation - shop around and it will not move.")
 
     # ---- add-ons -------------------------------------------------------
-    wanted = tables.normalise_add_ons(profile.get("add_ons") or [])
+    wanted, unmatched = tables.normalise_add_ons(profile.get("add_ons") or [])
     addons_total = 0.0
-    ppa_seats = 0
     for a in wanted:
         base = tables.ADDON_BASE_PREMIUM.get(a)
         if base is None:
-            warnings.append(f"Add-on '{a}' has no reference price yet - excluded.")
+            unmatched.append(a)
             continue
-        if a == "passenger_personal_accident":
-            ppa_seats += 1
         addons_total += base
+
+    if unmatched:
+        # Do not quietly drop a requested add-on - that is how a customer ends up
+        # holding a policy missing the cover they asked for.
+        warnings.append(
+            "No published reference price for: "
+            + ", ".join(sorted(set(unmatched)))
+            + ". These are not included in this estimate - ask the insurer "
+              "directly whether they offer them and at what cost."
+        )
 
     if wanted and cover_type == "third_party_only":
         notes.append("Add-ons only apply on a comprehensive policy. They were "
