@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Secrets - never commit. config.py reads from the environment.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# Local output
+live_out.txt
+*.log
+smoke_output.txt
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Data artefacts (reference data itself IS tracked)
+data/cache/
+data/raw/
+*.sqlite
+*.db

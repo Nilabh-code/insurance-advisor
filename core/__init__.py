@@ -1,0 +1,1 @@
+"""Core: conversation engine - profile, schemas, LLM client."""
